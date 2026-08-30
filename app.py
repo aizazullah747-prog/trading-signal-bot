@@ -104,7 +104,7 @@ def generate_signal():
             "confidence": confidence,
             "rsi": round(rsi_val, 2),
             "reason": reason,
-            "time": pd.Timestamp.now().strftime('%H:%M:%S')
+           "time": (pd.Timestamp.now() + pd.Timedelta(hours=5, minutes=30)).strftime('%H:%M:%S')
         })
 
     except Exception as e:

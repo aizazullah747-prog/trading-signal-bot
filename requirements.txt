@@ -4,3 +4,4 @@ yfinance
 pandas
 ta
 gunicorn
+pyTelegramBotAPI

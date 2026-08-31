@@ -19,7 +19,7 @@ def run_flask():
     app.run(host="0.0.0.0", port=port)
 
 # Telegram Bot
-TOKEN = "8762578164:AAEkUu0cxa88doJ33dVi3Viq9LsqHNtFN38"
+TOKEN = "8762578164:AAHRWFlD2CendRGW_hnGn8PU3reb1nVLFGU"
 bot = telebot.TeleBot(TOKEN)
 
 ASSETS = {

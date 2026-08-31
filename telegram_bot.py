@@ -1,10 +1,24 @@
+import os
+import threading
+from flask import Flask
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yfinance as yf
 import pandas as pd
 import ta
 
-# BotFather se mila hua API Token yahan paste karein
+# Dummy Web Server (Render ke Free tier ke liye)
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# Telegram Bot
 TOKEN = "8762578164:AAEkUu0cxa88doJ33dVi3Viq9LsqHNtFN38"
 bot = telebot.TeleBot(TOKEN)
 
@@ -23,63 +37,44 @@ def send_welcome(message):
     markup.row_width = 2
     for pair in ASSETS.keys():
         markup.add(InlineKeyboardButton(pair, callback_data=f"sig_{pair}"))
-    
-    bot.reply_to(
-        message, 
-        "📊 *Aizaz Trading Signal Bot*\n\nSelect Market Asset for Next 1-Min Candle Signal:", 
-        reply_markup=markup, 
-        parse_mode="Markdown"
-    )
+    bot.reply_to(message, "📊 *Aizaz Trading Signal Bot*\n\nSelect Market Asset:", reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('sig_'))
 def callback_signal(call):
     asset_name = call.data.replace('sig_', '')
     ticker_symbol = ASSETS.get(asset_name, "EURUSD=X")
-    
-    bot.answer_callback_query(call.id, text=f"Analyzing market data for {asset_name}...")
-
+    bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
     try:
         df = yf.download(tickers=ticker_symbol, period="1d", interval="1m", progress=False)
         if df.empty or len(df) < 30:
-            bot.send_message(call.message.chat.id, "⚠️ Insufficient data for this pair.")
+            bot.send_message(call.message.chat.id, "⚠️ Insufficient data.")
             return
 
-        if isinstance(df.columns, pd.MultiIndex):
-            close_series = df['Close'][ticker_symbol]
-        else:
-            close_series = df['Close']
-
+        close_series = df['Close'][ticker_symbol] if isinstance(df.columns, pd.MultiIndex) else df['Close']
         close_series = close_series.dropna().astype(float)
         rsi_val = float(ta.momentum.rsi(close_series, window=14).iloc[-1])
         ema9 = float(ta.trend.ema_indicator(close_series, window=9).iloc[-1])
         ema21 = float(ta.trend.ema_indicator(close_series, window=21).iloc[-1])
         current_price = float(close_series.iloc[-1])
 
-        if rsi_val <= 48 and ema9 > ema21:
-            direction = "🟢 *CALL (UP)*"
-        elif rsi_val >= 52 and ema9 < ema21:
-            direction = "🔴 *PUT (DOWN)*"
-        elif ema9 > ema21:
-            direction = "🟢 *CALL (UP)*"
-        else:
-            direction = "🔴 *PUT (DOWN)*"
-
+        direction = "🟢 *CALL (UP)*" if ema9 > ema21 else "🔴 *PUT (DOWN)*"
         local_time = (pd.Timestamp.now() + pd.Timedelta(hours=5, minutes=30)).strftime('%H:%M:%S')
 
         response = (
             f"🎯 *SIGNAL GENERATED*\n\n"
             f"📈 *Asset:* {asset_name}\n"
-            f"⏱️ *Timeframe:* 1 MIN (Next Candle)\n"
             f"📊 *Signal:* {direction}\n"
             f"💡 *Price:* {round(current_price, 5)}\n"
-            f"📉 *RSI (14):* {round(rsi_val, 2)}\n"
-            f"🕒 *Time (UTC+5:30):* {local_time}\n\n"
-            f"⚠️ *Place trade exactly at the start of next candle!*"
+            f"📉 *RSI:* {round(rsi_val, 2)}\n"
+            f"🕒 *Time:* {local_time}"
         )
-
         bot.send_message(call.message.chat.id, response, parse_mode="Markdown")
-
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Error: {str(e)}")
 
-bot.polling(none_stop=True)
+def run_bot():
+    bot.polling(none_stop=True)
+
+if __name__ == '__main__':
+    threading.Thread(target=run_flask).start()
+    run_bot()

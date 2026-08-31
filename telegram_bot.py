@@ -73,8 +73,8 @@ def callback_signal(call):
         bot.send_message(call.message.chat.id, f"❌ Error: {str(e)}")
 
 def run_bot():
-    bot.polling(none_stop=True)
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
 
 if __name__ == '__main__':
-    threading.Thread(target=run_flask).start()
+    threading.Thread(target=run_flask, daemon=True).start()
     run_bot()

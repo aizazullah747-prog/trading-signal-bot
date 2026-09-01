@@ -23,12 +23,14 @@ TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
 bot = telebot.TeleBot(TOKEN)
 
 ASSETS = {
+   ASSETS = {
     "EUR/USD": "EURUSD=X",
     "GBP/USD": "GBPUSD=X",
     "USD/JPY": "USDJPY=X",
     "AUD/USD": "AUDUSD=X",
     "BTC/USD": "BTC-USD",
     "ETH/USD": "ETH-USD"
+}
 }
 
 @bot.message_handler(commands=['start', 'signal'])
@@ -45,7 +47,7 @@ def callback_signal(call):
     ticker_symbol = ASSETS.get(asset_name, "EURUSD=X")
     bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
     try:
-        df = yf.download(tickers=ticker_symbol, period="1d", interval="1m", progress=False)
+       df = yf.download(tickers=ticker_symbol, period="5d", interval="5m", progress=False)
         if df.empty or len(df) < 30:
             bot.send_message(call.message.chat.id, "⚠️ Insufficient data.")
             return

@@ -2,21 +2,21 @@ import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import pandas as pd
+import pandas_datareader.data as web
 import ta
-from tvDatafeed import TvDatafeed, Interval
+from datetime import datetime, timedelta
 
 TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
 bot = telebot.TeleBot(TOKEN)
-tv = TvDatafeed()
 
-# Pair mapping for TradingView
+# Assets mapping for Stooq
 ASSETS = {
-    "EUR/USD": ("EURUSD", "FX_IDC"),
-    "GBP/USD": ("GBPUSD", "FX_IDC"),
-    "USD/JPY": ("USDJPY", "FX_IDC"),
-    "AUD/USD": ("AUDUSD", "FX_IDC"),
-    "BTC/USD": ("BTCUSD", "BITSTAMP"),
-    "ETH/USD": ("ETHUSD", "BITSTAMP")
+    "EUR/USD": "EURUSD",
+    "GBP/USD": "GBPUSD",
+    "USD/JPY": "USDJPY",
+    "AUD/USD": "AUDUSD",
+    "BTC/USD": "BTC.V",
+    "ETH/USD": "ETH.V"
 }
 
 @bot.message_handler(commands=['start', 'signal'])
@@ -30,18 +30,22 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('sig_'))
 def callback_signal(call):
     asset_name = call.data.replace('sig_', '')
-    symbol_info = ASSETS.get(asset_name)
+    symbol = ASSETS.get(asset_name)
     bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
     
     try:
-        symbol, exchange = symbol_info
-        df = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_15_minute, n_bars=100)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=60)
+        
+        df = web.DataReader(symbol, 'stooq', start=start_date, end=end_date)
 
-        if df is None or df.empty:
-            bot.send_message(call.message.chat.id, f"⚠️ Data fetch failed for {asset_name}.")
+        if df.empty or len(df) < 15:
+            bot.send_message(call.message.chat.id, f"⚠️ Insufficient data for {asset_name}.")
             return
 
-        close_series = df['close'].dropna().astype(float)
+        df = df.sort_index()
+        close_series = df['Close'].dropna().astype(float)
+        
         rsi_val = float(ta.momentum.rsi(close_series, window=14).iloc[-1])
         ema9 = float(ta.trend.ema_indicator(close_series, window=9).iloc[-1])
         ema21 = float(ta.trend.ema_indicator(close_series, window=21).iloc[-1])

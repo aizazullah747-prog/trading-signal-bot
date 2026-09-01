@@ -23,14 +23,12 @@ TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
 bot = telebot.TeleBot(TOKEN)
 
 ASSETS = {
-   ASSETS = {
     "EUR/USD": "EURUSD=X",
     "GBP/USD": "GBPUSD=X",
     "USD/JPY": "USDJPY=X",
     "AUD/USD": "AUDUSD=X",
     "BTC/USD": "BTC-USD",
     "ETH/USD": "ETH-USD"
-}
 }
 
 @bot.message_handler(commands=['start', 'signal'])

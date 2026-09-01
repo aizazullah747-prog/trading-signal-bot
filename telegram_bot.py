@@ -1,20 +1,22 @@
 import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import yfinance as yf
 import pandas as pd
 import ta
+from tvDatafeed import TvDatafeed, Interval
 
 TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
 bot = telebot.TeleBot(TOKEN)
+tv = TvDatafeed()
 
+# Pair mapping for TradingView
 ASSETS = {
-    "EUR/USD": "EURUSD=X",
-    "GBP/USD": "GBPUSD=X",
-    "USD/JPY": "USDJPY=X",
-    "AUD/USD": "AUDUSD=X",
-    "BTC/USD": "BTC-USD",
-    "ETH/USD": "ETH-USD"
+    "EUR/USD": ("EURUSD", "FX_IDC"),
+    "GBP/USD": ("GBPUSD", "FX_IDC"),
+    "USD/JPY": ("USDJPY", "FX_IDC"),
+    "AUD/USD": ("AUDUSD", "FX_IDC"),
+    "BTC/USD": ("BTCUSD", "BITSTAMP"),
+    "ETH/USD": ("ETHUSD", "BITSTAMP")
 }
 
 @bot.message_handler(commands=['start', 'signal'])
@@ -28,18 +30,18 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('sig_'))
 def callback_signal(call):
     asset_name = call.data.replace('sig_', '')
-    ticker_symbol = ASSETS.get(asset_name, "EURUSD=X")
+    symbol_info = ASSETS.get(asset_name)
     bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
+    
     try:
-        # Ticker object download to avoid MultiIndex issues
-        ticker = yf.Ticker(ticker_symbol)
-        df = ticker.history(period="7d", interval="15m")
-        
-        if df.empty or len(df) < 20:
-            bot.send_message(call.message.chat.id, f"⚠️ Insufficient data for {asset_name}.")
+        symbol, exchange = symbol_info
+        df = tv.get_hist(symbol=symbol, exchange=exchange, interval=Interval.in_15_minute, n_bars=100)
+
+        if df is None or df.empty:
+            bot.send_message(call.message.chat.id, f"⚠️ Data fetch failed for {asset_name}.")
             return
 
-        close_series = df['Close'].dropna().astype(float)
+        close_series = df['close'].dropna().astype(float)
         rsi_val = float(ta.momentum.rsi(close_series, window=14).iloc[-1])
         ema9 = float(ta.trend.ema_indicator(close_series, window=9).iloc[-1])
         ema21 = float(ta.trend.ema_indicator(close_series, window=21).iloc[-1])

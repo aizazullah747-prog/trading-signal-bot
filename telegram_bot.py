@@ -1,25 +1,11 @@
 import os
-import threading
-from flask import Flask
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yfinance as yf
 import pandas as pd
 import ta
 
-# Dummy Web Server (Render ke Free tier ke liye)
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot is alive!"
-
-def run_flask():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
-# Telegram Bot
-TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
+TOKEN = "8762578164:AAHwvVDhgVnGBIaczBd4G889euvjDd1E06g"
 bot = telebot.TeleBot(TOKEN)
 
 ASSETS = {
@@ -45,7 +31,7 @@ def callback_signal(call):
     ticker_symbol = ASSETS.get(asset_name, "EURUSD=X")
     bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
     try:
-       df = yf.download(tickers=ticker_symbol, period="5d", interval="5m", progress=False)
+        df = yf.download(tickers=ticker_symbol, period="5d", interval="5m", progress=False)
         if df.empty or len(df) < 30:
             bot.send_message(call.message.chat.id, "⚠️ Insufficient data.")
             return
@@ -72,9 +58,5 @@ def callback_signal(call):
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Error: {str(e)}")
 
-def run_bot():
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
-
 if __name__ == '__main__':
-    threading.Thread(target=run_flask, daemon=True).start()
-    run_bot()
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)

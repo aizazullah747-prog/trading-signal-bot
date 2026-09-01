@@ -31,13 +31,15 @@ def callback_signal(call):
     ticker_symbol = ASSETS.get(asset_name, "EURUSD=X")
     bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
     try:
-        df = yf.download(tickers=ticker_symbol, period="5d", interval="5m", progress=False)
-        if df.empty or len(df) < 30:
-            bot.send_message(call.message.chat.id, "⚠️ Insufficient data.")
+        # Ticker object download to avoid MultiIndex issues
+        ticker = yf.Ticker(ticker_symbol)
+        df = ticker.history(period="7d", interval="15m")
+        
+        if df.empty or len(df) < 20:
+            bot.send_message(call.message.chat.id, f"⚠️ Insufficient data for {asset_name}.")
             return
 
-        close_series = df['Close'][ticker_symbol] if isinstance(df.columns, pd.MultiIndex) else df['Close']
-        close_series = close_series.dropna().astype(float)
+        close_series = df['Close'].dropna().astype(float)
         rsi_val = float(ta.momentum.rsi(close_series, window=14).iloc[-1])
         ema9 = float(ta.trend.ema_indicator(close_series, window=9).iloc[-1])
         ema21 = float(ta.trend.ema_indicator(close_series, window=21).iloc[-1])

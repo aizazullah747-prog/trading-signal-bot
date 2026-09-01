@@ -2,22 +2,32 @@ import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import pandas as pd
-import pandas_datareader.data as web
+import requests
 import ta
-from datetime import datetime, timedelta
 
 TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
 bot = telebot.TeleBot(TOKEN)
 
-# Assets mapping for Stooq
 ASSETS = {
-    "EUR/USD": "EURUSD",
-    "GBP/USD": "GBPUSD",
-    "USD/JPY": "USDJPY",
-    "AUD/USD": "AUDUSD",
-    "BTC/USD": "BTC.V",
-    "ETH/USD": "ETH.V"
+    "EUR/USD": "EURUSD=X",
+    "GBP/USD": "GBPUSD=X",
+    "USD/JPY": "USDJPY=X",
+    "AUD/USD": "AUDUSD=X",
+    "BTC/USD": "BTC-USD",
+    "ETH/USD": "ETH-USD"
 }
+
+def get_market_data(symbol):
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=15m"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    res = requests.get(url, headers=headers).json()
+    
+    result = res['chart']['result'][0]
+    prices = result['indicators']['quote'][0]['close']
+    
+    df = pd.DataFrame({'Close': prices})
+    df = df.dropna()
+    return df
 
 @bot.message_handler(commands=['start', 'signal'])
 def send_welcome(message):
@@ -30,22 +40,16 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('sig_'))
 def callback_signal(call):
     asset_name = call.data.replace('sig_', '')
-    symbol = ASSETS.get(asset_name)
+    ticker_symbol = ASSETS.get(asset_name)
     bot.answer_callback_query(call.id, text=f"Analyzing {asset_name}...")
     
     try:
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=60)
-        
-        df = web.DataReader(symbol, 'stooq', start=start_date, end=end_date)
-
-        if df.empty or len(df) < 15:
+        df = get_market_data(ticker_symbol)
+        if df.empty or len(df) < 20:
             bot.send_message(call.message.chat.id, f"⚠️ Insufficient data for {asset_name}.")
             return
 
-        df = df.sort_index()
-        close_series = df['Close'].dropna().astype(float)
-        
+        close_series = df['Close'].astype(float)
         rsi_val = float(ta.momentum.rsi(close_series, window=14).iloc[-1])
         ema9 = float(ta.trend.ema_indicator(close_series, window=9).iloc[-1])
         ema21 = float(ta.trend.ema_indicator(close_series, window=21).iloc[-1])

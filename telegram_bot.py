@@ -5,7 +5,7 @@ import yfinance as yf
 import pandas as pd
 import ta
 
-TOKEN = "8762578164:AAHwvVDhgVnGBIaczBd4G889euvjDd1E06g"
+TOKEN = "8762578164:AAHwvVDhgVnGBIaezBd4G889euvjDd1EO6g"
 bot = telebot.TeleBot(TOKEN)
 
 ASSETS = {
